@@ -27,5 +27,3 @@ until_ predicate prompt action = do result <- prompt
 
 runRepl :: IO ()
 runRepl = primitiveBindings >>= until_ (== "quit") (readPrompt "Lisp>>> ") . evalAndPrint
-
-
