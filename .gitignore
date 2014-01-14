@@ -3,4 +3,7 @@
 .cabal-sandbox
 .cabal.sandbox.config
 dist/
+.hsenv
+cabal.sandbox.config
+hsenv.log
 hs-lisp
