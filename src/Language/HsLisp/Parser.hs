@@ -3,6 +3,7 @@ module Language.HsLisp.Parser
     ,readExprList
     ) where
 
+import Control.Applicative ((<*), (*>), (<$>), (<*>), pure)
 import Control.Monad.Error
 import Text.ParserCombinators.Parsec hiding (spaces)
 import Language.HsLisp.Type
@@ -14,58 +15,55 @@ spaces :: Parser ()
 spaces = skipMany1 space
 
 escape :: Parser Char
-escape = char '\\' >> oneOf "\\\""
+escape = char '\\' <* oneOf "\\\""
 
 parseString :: Parser LispVal
-parseString = do char '"'
-                 str <- many $ escape <|> noneOf "\""
-                 char '"'
-                 return $ String str
+parseString = pure String
+              <*> (char '"'
+                  *> many (escape <|> noneOf "\"") <*
+                  char '"')
 
 parseAtom :: Parser LispVal
-parseAtom = do first <- letter <|> symbol
-               rest <- many (letter <|> digit <|> symbol)
-               let atom = first:rest
+parseAtom = do atom <- pure (:)
+                       <*> (letter <|> symbol)
+                       <*> many (letter <|> digit <|> symbol)
                return $ case atom of
                             "#t" -> Bool True
                             "#f" -> Bool False
                             _    -> Atom atom
 
+
 parseNumber :: Parser LispVal
-parseNumber = fmap (Number . read) $ many1 digit
+parseNumber = (Number . read) <$> many1 digit
 
 parseList :: Parser LispVal
-parseList = fmap List $ sepBy parseExpr spaces
+parseList = List <$> sepBy parseExpr spaces
 
 parseDottedList :: Parser LispVal
-parseDottedList = do
-        headValue <- endBy parseExpr spaces
-        tailValue <- char '.' >> spaces >> parseExpr
-        return $ DottedList headValue tailValue
+parseDottedList = pure DottedList
+                  <*> endBy parseExpr spaces
+                  <*> (char '.' *> spaces *> parseExpr)
 
 parseQuoted :: Parser LispVal
-parseQuoted = do
-        char '\''
-        x <- parseExpr
-        return $ List [Atom "quote", x]
+parseQuoted = do x <- char '\'' *> parseExpr
+                 return $ List [Atom "quote", x]
 
 parseExpr :: Parser LispVal
-parseExpr = parseAtom <|>
-            parseString <|>
-            parseNumber <|>
-            parseQuoted <|>
-            do char '('
-               x <- try parseList <|> parseDottedList
-               char ')'
-               return x
+parseExpr = parseAtom
+            <|> parseString
+            <|> parseNumber
+            <|> parseQuoted
+            <|> (char '('
+                *> (try parseList <|> parseDottedList) <*
+                char ')')
 
 readOrThrow :: Parser a -> String -> ThrowsError a
 readOrThrow parser input = case parse parser "lisp" input of
-    Left err -> throwError $ Parser err
-    Right val -> return val
+                                Left err -> throwError $ Parser err
+                                Right val -> return val
 
 readExpr :: String -> ThrowsError LispVal
 readExpr = readOrThrow parseExpr
 
 readExprList :: String -> ThrowsError [LispVal]
-readExprList = readOrThrow (endBy parseExpr spaces)
+readExprList = readOrThrow $ endBy parseExpr spaces
