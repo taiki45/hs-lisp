@@ -24,13 +24,13 @@ parseString = pure String
                   char '"')
 
 parseAtom :: Parser LispVal
-parseAtom = do atom <- pure (:)
-                       <*> (letter <|> symbol)
-                       <*> many (letter <|> digit <|> symbol)
-               return $ case atom of
-                            "#t" -> Bool True
-                            "#f" -> Bool False
-                            _    -> Atom atom
+parseAtom = takeBool <$> (pure (:)
+                          <*> (letter <|> symbol)
+                          <*> many (letter <|> digit <|> symbol))
+            where takeBool atom = case atom of
+                                "#t" -> Bool True
+                                "#f" -> Bool False
+                                _    -> Atom atom
 
 
 parseNumber :: Parser LispVal
