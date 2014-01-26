@@ -18,19 +18,18 @@ escape :: Parser Char
 escape = char '\\' <* oneOf "\\\""
 
 parseString :: Parser LispVal
-parseString = pure String
-              <*> (char '"'
-                  *> many (escape <|> noneOf "\"") <*
-                  char '"')
+parseString = do char '"'
+                 s <- many $ escape <|> noneOf "\""
+                 char '"'
+                 return $ String s
 
 parseAtom :: Parser LispVal
-parseAtom = takeBool <$> (pure (:)
-                          <*> (letter <|> symbol)
-                          <*> many (letter <|> digit <|> symbol))
-            where takeBool atom = case atom of
-                                "#t" -> Bool True
-                                "#f" -> Bool False
-                                _    -> Atom atom
+parseAtom = toBool <$> (pure (:)
+                        <*> (letter <|> symbol)
+                        <*> many (letter <|> digit <|> symbol))
+            where toBool "#t" = Bool True
+                  toBool "#f" = Bool False
+                  toBool atom = Atom atom
 
 
 parseNumber :: Parser LispVal
